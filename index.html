@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ida e Volta - Mobilidade e Segurança</title>
+    
+    <!-- Configurações PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link class="apple-touch-icon" href="icon-192.png">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f3f4f6;
+        }
+
+        /* --- ESTILOS DA LANDING PAGE --- */
+        #landing-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: opacity 0.6s ease, visibility 0.6s;
+        }
+
+        .landing-card {
+            background: rgba(255, 255, 255, 0.95);
+            width: 100%;
+            max-width: 480px;
+            border-radius: 24px;
+            padding: 40px 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .brand-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #1e3a8a;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-subtitle {
+            font-size: 15px;
+            color: #6b7280;
+            margin-bottom: 32px;
+            font-weight: 400;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .input-hours-wrapper {
+            display: flex;
+            align-items: center;
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 4px 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-hours-wrapper:focus-within {
+            border-color: #1e3a8a;
+        }
+
+        .input-hours-wrapper input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            padding: 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+            outline: none;
+            color: #1f2937;
+        }
+
+        .input-hours-wrapper .unit {
+            font-size: 15px;
+            font-weight: 600;
+            color: #9ca3af;
+            margin-left: 8px;
+        }
+
+        .btn-cta {
+            width: 100%;
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 14px rgba(30, 58, 138, 0.4);
+        }
+
+        .btn-cta:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-cta:active {
+            transform: scale(0.98);
+        }
+
+        /* --- ESTILOS DO APLICATIVO (MAPA E INTERFACE CORES AZUL/CINZA) --- */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        .splash-logo {
+            width: 160px;
+            height: 160px;
+            margin-bottom: 24px;
+            border-radius: 32px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #1e3a8a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        #route-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .search-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 460px;
+            background: white;
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .input-wrapper:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #1e3a8a;
+            border-radius: 50%;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .dot.dest {
+            background: #9ca3af;
+            border-radius: 0px;
+        }
+
+        .input-group input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-size: 15px;
+            outline: none;
+            color: #374151;
+        }
+
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            margin-top: 4px;
+            border: 1px solid #e5e7eb;
+            display: none;
+        }
+
+        .autocomplete-suggestion {
+            padding: 12px;
+            font-size: 14px;
+            color: #374151;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .autocomplete-suggestion:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-suggestion:hover {
+            background-color: #f3f4f6;
+        }
+
+        .bottom-panel {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 24px 24px 0 0;
+            padding: 20px 24px 24px 24px;
+            box-shadow: 0 -4px 25px rgba(0,0,0,0.08);
+            z-index: 1000;
+        }
+
+        .route-info {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 16px;
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .info-block {
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .btn-action {
+            width: 100%;
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+        }
+
+        .btn-action:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-action:active {
+            transform: scale(0.98);
+        }
+
+        .leaflet-routing-container {
+            display: none !important;
+        }
+    
+        /* --- BOTÕES LATERAIS DE AÇÃO DIRECTA --- */
+        .actions-wrapper {
+            position: absolute;
+            bottom: 140px; 
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .action-label {
+            background-color: rgba(15, 23, 42, 0.85);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            pointer-events: none;
+        }
+
+        .circle-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            text-decoration: none;
+            border: none;
+            outline: none;
+        }
+
+        .circle-btn:active {
+            transform: scale(0.92);
+        }
+
+        .whatsapp-btn {
+            background-color: #25D366;
+        }
+        .whatsapp-btn:active {
+            background-color: #1ebd58;
+        }
+        .whatsapp-btn svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+
+        .pix-btn {
+            background-color: #32BCAD;
+        }
+        .pix-btn:active {
+            background-color: #269e91;
+        }
+        .pix-btn svg {
+            width: 26px;
+            height: 26px;
+            fill: white;
+        }
+
+        /* --- MODAL PIX --- */
+        .pix-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10005;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s;
+        }
+        .pix-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .pix-card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .pix-card h3 {
+            color: #1f2937;
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .qrcode-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 12px;
+        }
+        .pix-input-box {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            word-break: break-all;
+            color: #4b5563;
+            max-height: 80px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+        .btn-modal-action {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            margin-bottom: 8px;
+        }
+        .btn-copy {
+            background: #32BCAD;
+            color: white;
+        }
+        .btn-close-modal {
+            background: #e5e7eb;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Tela de Loading Inicial (Visível durante o carregamento dos arquivos/scripts) -->
+    <div id="splash-screen">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- ================= TRAVA DE LANDING PAGE ================= -->
+    <div id="landing-page">
+        <div class="landing-card">
+            <h1 class="brand-title">Ida e Volta</h1>
+            <p class="brand-subtitle">Segurança e Conforto com Motorista Particular</p>
+            
+            <div class="form-group">
+                <label class="form-label" for="nome-passageiro">Nome</label>
+                <div class="input-hours-wrapper" style="margin-bottom: 16px;">
+                    <input type="text" id="nome-passageiro" placeholder="Digite seu nome">
+                </div>
+
+                <label class="form-label" for="tempo-espera">Quanto tempo você pretende ficar no local?</label>
+                <div class="input-hours-wrapper">
+                    <input type="number" id="tempo-espera" min="0" max="24" placeholder="0" value="1">
+                    <span class="unit">horas</span>
+                </div>
+            </div>
+
+            <button class="btn-cta" id="btn-entrar-app">Agendar e Calcular Rota</button>
+        </div>
+    </div>
+
+    <!-- Overlay de Loading Transparente (Calcular Rota) -->
+    <div id="route-loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Mapa Leaflet -->
+    <div id="map"></div>
+
+    <!-- Container de Entradas de Endereço -->
+    <div class="search-container">
+        <div class="input-wrapper">
+            <div class="input-group">
+                <div class="dot"></div>
+                <input type="text" id="start-input" placeholder="Digite o ponto de partida" autocomplete="off">
+            </div>
+            <div id="start-suggestions" class="autocomplete-suggestions"></div>
+        </div>
+        <div class="input-wrapper">
+            <div class="input-group">
+                <div class="dot dest"></div>
+                <input type="text" id="end-input" placeholder="Digite o destino" autocomplete="off">
+            </div>
+            <div id="end-suggestions" class="autocomplete-suggestions"></div>
+        </div>
+    </div>
+
+    <!-- Painel de Controle Inferior -->
+    <div class="bottom-panel">
+        <div class="route-info">
+            <div class="info-block">
+                <div class="info-label">Distância</div>
+                <div class="info-value" id="distancia">- km</div>
+            </div>
+            <div class="info-block">
+                <div class="info-label">Tempo Estimado</div>
+                <div class="info-value" id="tempo">- min</div>
+            </div>
+            <div class="info-block">
+                <div class="info-label">Valor Total</div>
+                <div class="info-value" id="preco-viagem">-</div>
+            </div>
+        </div>
+        <button class="btn-action" id="btn-calcular">Calcular Nova Rota</button>
+    </div>
+
+    <!-- Container de Botões Ações Flutuantes -->
+    <div class="actions-wrapper">
+        <!-- Botão Pagar com PIX -->
+        <div class="action-item" id="pix-btn-wrapper" style="display: none;">
+            <div class="action-label">Pagar com PIX</div>
+            <a href="#" class="circle-btn pix-btn" id="btn-pix-trigger">
+                <svg viewBox="0 0 512 512">
+                    <path d="M242.4 49.6c5.5-5.3 13.9-5.3 19.4 0l200 192c5.9 5.7 6.1 15.2 .4 21.1s-15.2 6.1-21.1 .4L256 91.9 70.9 269.5c-5.9 5.7-15.4 5.5-21.1-.4s-5.5-15.4 .4-21.1l200-192zm0 412.8l-200-192c-5.9-5.7-6.1-15.2-.4-21.1s15.2-6.1 21.1-.4L256 420.1 441.1 242.5c5.9-5.7 15.4-5.5 21.1 .4s5.5 15.4-.4 21.1l-200 192c-5.5 5.3-13.9 5.3-19.4 0z"/>
+                </svg>
+            </a>
+        </div>
+        <!-- Botão WhatsApp -->
+        <div class="action-item" id="whatsapp-btn-wrapper" style="display: none;">
+            <div class="action-label">Chame o Motorista</div>
+            <a href="#" class="circle-btn whatsapp-btn" target="_blank" id="whatsapp-link">
+                <svg viewBox="0 0 448 512">
+                    <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Modal PIX QR Code / Copia e Cola -->
+    <div class="pix-modal" id="pix-modal">
+        <div class="pix-card">
+            <h3>Pagamento via PIX</h3>
+            <p style="font-size: 14px; color: #6b7280;">Escaneie o QR Code ou copie o código abaixo:</p>
+            <div class="qrcode-container" id="pix-qrcode"></div>
+            <div class="pix-input-box" id="pix-copia-cola-text"></div>
+            <button class="btn-modal-action btn-copy" id="btn-copiar-pix">Copiar Código PIX</button>
+            <button class="btn-modal-action btn-close-modal" id="btn-fechar-pix">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/layout.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    
+    <!-- Biblioteca compacta externa para geração de QR Code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        // Oculta a tela de splash/loading apenas após todo o HTML e recursos carregarem por completo
+        window.addEventListener('load', () => {
+            const splash = document.getElementById('splash-screen');
+            splash.style.opacity = '0';
+            splash.style.visibility = 'hidden';
+        });
+
+        // ================= CONFIGURAÇÕES DO PIX =================
+        const CHAVE_PIX = "thiagomacedolima@gmail.com"; 
+        const NOME_BENEFICIARIO = "Thiago Macedo Lima";
+        const CIDADE_BENEFICIARIO = "Rio de Janeiro";
+        // ========================================================
+
+        // Biblioteca embutida leve para geração de string padrão BRCode / EMV
+        const PixBRCode = {
+            fld: (id, val) => id + String(val.length).padStart(2, '0') + val,
+            gerarCopiaCola: (chave, nome, cidade, valor) => {
+                const cMerch = PixBRCode.fld('01', chave);
+                const merchantInfo = PixBRCode.fld('26', PixBRCode.fld('00', 'br.gov.bcb.pix') + cMerch);
+                const valorStr = parseFloat(valor).toFixed(2);
+                
+                let emv = PixBRCode.fld('00', '01') +
+                          merchantInfo +
+                          PixBRCode.fld('52', '0000') +
+                          PixBRCode.fld('53', '986') +
+                          PixBRCode.fld('54', valorStr) +
+                          PixBRCode.fld('58', 'BR') +
+                          PixBRCode.fld('59', nome.substring(0, 25)) +
+                          PixBRCode.fld('60', cidade.substring(0, 15)) +
+                          PixBRCode.fld('62', PixBRCode.fld('05', '***'));
+                
+                emv += '6304';
+                
+                // Cálculo de CRC16
+                let crc = 0xFFFF;
+                for (let c = 0; c < emv.length; c++) {
+                    crc ^= (emv.charCodeAt(c) << 8);
+                    for (let i = 0; i < 8; i++) {
+                        if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+                        else crc <<= 1;
+                    }
+                }
+                const crcHex = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+                return emv + crcHex;
+            }
+        };
+
+        // Variáveis globais para armazenar os dados digitados na Landing Page
+        let nomePassageiro = "";
+        let horasDeEspera = 1;
+        let copiaColaGerado = "";
+        let qrCodeInstancia = null;
+
+        // Gerenciamento de Transição: Landing Page -> App
+        document.getElementById('btn-entrar-app').addEventListener('click', () => {
+            nomePassageiro = document.getElementById('nome-passageiro').value.trim();
+            const inputHoras = document.getElementById('tempo-espera').value;
+            horasDeEspera = parseFloat(inputHoras) || 0;
+
+            const landing = document.getElementById('landing-page');
+            landing.style.opacity = '0';
+            landing.style.visibility = 'hidden';
+
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 600);
+        });
+
+        // Inicializar o Mapa centrado no Rio de Janeiro por padrão
+        const map = L.map('map').setView([-22.9068, -43.1729], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Instanciar o controle de rotas
+        let routingControl = L.Routing.control({
+            waypoints: [],
+            routeWhileDragging: true,
+            lineOptions: {
+                styles: [{ color: '#1e3a8a', opacity: 0.8, weight: 6 }]
+            },
+            createMarker: function(i, waypoint, n) {
+                return L.marker(waypoint.latLng, { draggable: true });
+            }
+        }).addTo(map);
+
+        // Preço padrão da gasolina
+        async function obterPrecoGasolinaRJ() {
+            try {
+                const resposta = await fetch('https://combustivelapi.com.br/api/preco/rj');
+                const dados = await resposta.json();
+                if(dados && dados.gasolina) {
+                    return parseFloat(dados.gasolina);
+                }
+                return 5.80; 
+            } catch (erro) {
+                console.error("Erro ao buscar preço do combustível:", erro);
+                return 5.80;
+            }
+        }
+
+        // Atualização de Rota Dinâmica
+         routingControl.on('routesfound', async function(e) {
+            const routes = e.routes;
+            const summary = routes[0].summary;
+            
+            const distanceValue = summary.totalDistance / 1000;
+            const distanceStr = distanceValue.toFixed(1);
+            const time = Math.round(summary.totalTime / 60);
+
+            document.getElementById('distancia').innerText = distanceStr + ' km';
+            document.getElementById('tempo').innerText = time + ' min';
+            document.getElementById('preco-viagem').innerText = "Calculando...";
+
+            const agora = new Date();
+            const hora = agora.getHours();
+            let kmPorLitro = 3; 
+
+            if (hora >= 7 && hora < 22) {
+                kmPorLitro = 2; 
+            }
+
+            const precoGasolina = await obterPrecoGasolinaRJ();
+
+            // Cálculo base
+            const litrosConsumidos = distanceValue / kmPorLitro;
+            const taxaEspera = horasDeEspera * 15; 
+            const valorFinalViagem = (litrosConsumidos * precoGasolina) + taxaEspera; //+ 20
+
+            const valorFormatado = valorFinalViagem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('preco-viagem').innerText = valorFormatado;
+
+            // ================= GERAÇÃO AUTOMÁTICA DO PIX =================
+            copiaColaGerado = PixBRCode.gerarCopiaCola(CHAVE_PIX, NOME_BENEFICIARIO, CIDADE_BENEFICIARIO, valorFinalViagem);
+            document.getElementById('pix-copia-cola-text').innerText = copiaColaGerado;
+            
+            // Limpa o container anterior do QR Code e reconstrói o objeto gráfico
+            document.getElementById('pix-qrcode').innerHTML = "";
+            qrCodeInstancia = new QRCode(document.getElementById('pix-qrcode'), {
+                text: copiaColaGerado,
+                width: 180,
+                height: 180,
+                correctLevel : QRCode.CorrectLevel.M
+            });
+
+            // Torna o botão PIX visível APENAS APÓS concluir e processar a rota com sucesso
+            document.getElementById('pix-btn-wrapper').style.display = 'flex';
+            // Torna o botão WhatsApp visível APENAS APÓS concluir e processar a rota com sucesso
+            document.getElementById('whatsapp-btn-wrapper').style.display = 'flex';
+            // ============================================================
+
+            const pontoPartida = document.getElementById('start-input').value;
+            const destinoFinal = document.getElementById('end-input').value;
+            const urlGoogleMaps = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pontoPartida)}&destination=${encodeURIComponent(destinoFinal)}`;
+
+            const exibicaoNome = nomePassageiro ? `*Passageiro:* ${nomePassageiro}\n` : '';
+            
+            const txtWhatsapp = encodeURIComponent(` *Nova Corrida!*\n\n${exibicaoNome}\n*Partida:* ${pontoPartida}\n\n*Destino Final:* ${destinoFinal}\n\n*Distância da viagem:* ${distanceStr} km.\n\n*Tempo de espera local solicitado:* ${horasDeEspera} hora(s).\n\n*Valor total estimado com espera:* ${valorFormatado}.\n\n*Código PIX Copia e Cola:* \n${copiaColaGerado}\n\n*Trajeto:* ${urlGoogleMaps}`);
+            document.getElementById('whatsapp-link').href = `https://wa.me/5521998787192?text=${txtWhatsapp}`;
+        });
+
+        // Controle do Modal do PIX
+        document.getElementById('btn-pix-trigger').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('pix-modal').classList.add('active');
+        });
+
+        document.getElementById('btn-fechar-pix').addEventListener('click', () => {
+            document.getElementById('pix-modal').classList.remove('active');
+        });
+
+        document.getElementById('btn-copiar-pix').addEventListener('click', () => {
+            if (copiaColaGerado) {
+                navigator.clipboard.writeText(copiaColaGerado).then(() => {
+                    alert("Código PIX Copia e Cola copiado com sucesso!");
+                }).catch(err => {
+                    console.error("Erro ao copiar texto: ", err);
+                });
+            }
+        });
+
+        // Geocoding
+        async function buscarCoordenadas(endereco) {
+            if (!endereco) return null;
+            try {
+                const resposta = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endereco)}&countrycodes=br&limit=1`);
+                const dados = await resposta.json();
+                if (dados && dados.length > 0) {
+                    return L.latLng(dados[0].lat, dados[0].lon);
+                } else {
+                    alert(`Localização não encontrada: "${endereco}"`);
+                    return null;
+                }
+            } catch (erro) {
+                console.error("Erro na busca de endereço:", erro);
+                alert("Ocorreu um erro ao buscar o endereço.");
+                return null;
+            }
+        }
+
+        // Autocomplete
+        function configurarAutocomplete(inputId, suggestionsId) {
+            const input = document.getElementById(inputId);
+            const suggestionsContainer = document.getElementById(suggestionsId);
+            let debounceTimeout;
+
+            input.addEventListener('input', function() {
+                clearTimeout(debounceTimeout);
+                const query = this.value.trim();
+
+                if (query.length < 3) {
+                    suggestionsContainer.style.display = 'none';
+                    return;
+                }
+
+                debounceTimeout = setTimeout(async () => {
+                    try {
+                        const resposta = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=br&limit=5&addressdetails=1&hierarchy=1&group_hierarchy=1`);
+                        const dados = await resposta.json();
+
+                        suggestionsContainer.innerHTML = '';
+
+                        if (dados && dados.length > 0) {
+                            dados.forEach(item => {
+                                const div = document.createElement('div');
+                                div.className = 'autocomplete-suggestion';
+                                div.innerText = item.display_name;
+                                
+                                div.addEventListener('click', () => {
+                                    input.value = item.display_name;
+                                    suggestionsContainer.style.display = 'none';
+                                });
+                                suggestionsContainer.appendChild(div);
+                            });
+                            suggestionsContainer.style.display = 'block';
+                        } else {
+                            suggestionsContainer.style.display = 'none';
+                        }
+                    } catch (erro) {
+                        console.error("Erro no autocomplete:", erro);
+                    }
+                }, 400);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (e.target !== input && e.target !== suggestionsContainer) {
+                    suggestionsContainer.style.display = 'none';
+                }
+            });
+        }
+
+        configurarAutocomplete('start-input', 'start-suggestions');
+        configurarAutocomplete('end-input', 'end-suggestions');
+
+        // Calcular Rota
+        async function calcularRota() {
+            const pontoPartidaNome = document.getElementById('start-input').value;
+            const pontoDestinoNome = document.getElementById('end-input').value;
+
+            if (!pontoPartidaNome || !pontoDestinoNome) {
+                alert("Por favor, preencha os campos de partida e destino.");
+                return;
+            }
+
+            const overlay = document.getElementById('route-loading-overlay');
+            overlay.style.visibility = 'visible';
+            overlay.style.opacity = '1';
+
+            const timerPromise = new Promise(resolve => setTimeout(resolve, 1500));
+
+            document.getElementById('distancia').innerText = "Buscando...";
+            document.getElementById('tempo').innerText = "Buscando...";
+            document.getElementById('preco-viagem').innerText = "-";
+            
+            document.getElementById('pix-btn-wrapper').style.display = 'none'; 
+            document.getElementById('whatsapp-btn-wrapper').style.display = 'none'; 
+
+            const coordenadasPartida = await buscarCoordenadas(pontoPartidaNome);
+            if (!coordenadasPartida) { overlay.style.opacity = '0'; overlay.style.visibility = 'hidden'; return; }
+
+            const coordenadasDestino = await buscarCoordenadas(pontoDestinoNome);
+            if (!coordenadasDestino) { overlay.style.opacity = '0'; overlay.style.visibility = 'hidden'; return; }
+
+            routingControl.setWaypoints([coordenadasPartida, coordenadasDestino]);
+            
+            const bounds = L.latLngBounds(coordenadasPartida, coordenadasDestino);
+            map.fitBounds(bounds, { padding: [50, 50] });
+
+            await timerPromise;
+
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+        }
+
+        document.getElementById('btn-calcular').addEventListener('click', calcularRota);
+    </script>
+</body>
+</html>
