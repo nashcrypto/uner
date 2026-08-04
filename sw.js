@@ -1,11 +1,11 @@
-const CACHE_NAME = 'osm-ride-v1';
+const CACHE_NAME = 'ida-e-volta-v1';
 const ASSETS = [
-  'index.html',
-  'manifest.json',
-  'icon-192.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './img/favicon.ico'
 ];
 
-// Instala o service worker e armazena os arquivos locais essenciais em cache
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -14,7 +14,6 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// Intercepta requisições de rede para retornar o cache caso esteja offline
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then((response) => {
